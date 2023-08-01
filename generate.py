@@ -10,9 +10,9 @@ import lightning as L
 import torch
 
 import torch._dynamo.config
-torch._dynamo.config.automatic_dynamic_shapes = True
+# torch._dynamo.config.automatic_dynamic_shapes = True
 import torch._inductor.config
-torch._inductor.config.triton.unique_kernel_names = True
+# torch._inductor.config.triton.unique_kernel_names = True
 
 # Enable this to bring perf from 93 tok/s => 103 tok/s
 # increases compile time due to coord descent autotuning + compiling both prefill and decode steps
@@ -136,8 +136,8 @@ def main(
     top_k: int = 200,
     temperature: float = 0.8,
     checkpoint_path: Path = Path("checkpoints/lit-llama/7B/lit-llama.pth"),
-    tokenizer_path: Path = Path("checkpoints/lit-llama/tokenizer.model"),
-    fake: bool = False,
+    tokenizer_path: Path = Path("checkpoints/open-llama/7B/tokenizer.model"),
+    fake: Optional[str] = None,
     compile: bool = True,
     profile: Optional[Path] = None,
     max_optimize: bool = False,
@@ -157,7 +157,6 @@ def main(
             ``"llm.int8"``: LLM.int8() mode,
             ``"gptq.int4"``: GPTQ 4-bit mode.
     """
-    assert checkpoint_path.is_file(), checkpoint_path
     assert tokenizer_path.is_file(), tokenizer_path
 
     precision = "bf16-true" if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "32-true"
@@ -165,14 +164,17 @@ def main(
 
     print("Loading model ...", file=sys.stderr)
     t0 = time.time()
-    with lazy_load(checkpoint_path) as checkpoint:
-        name = llama_model_lookup(checkpoint)
-
+    if fake is not None:
+        name = fake
         with fabric.init_module(empty_init=True):
             model = LLaMA.from_name(name)
+    else:
+        assert checkpoint_path.is_file(), checkpoint_path
+        with lazy_load(checkpoint_path) as checkpoint:
+            name = llama_model_lookup(checkpoint)
 
-        if not fake:
-            model.load_state_dict(checkpoint)
+            with fabric.init_module(empty_init=True):
+                model = LLaMA.from_name(name)
     print(f"Time to load model: {time.time() - t0:.02f} seconds.", file=sys.stderr)
 
 
