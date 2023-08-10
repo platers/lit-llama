@@ -136,7 +136,7 @@ def main(
     top_k: int = 200,
     temperature: float = 0.8,
     checkpoint_path: Path = Path("checkpoints/lit-llama/7B/lit-llama.pth"),
-    tokenizer_path: Path = Path("checkpoints/open-llama/7B/tokenizer.model"),
+    tokenizer_path: Path = Path("tokenizer.model"),
     fake: Optional[str] = None,
     compile: bool = True,
     profile: Optional[Path] = None,
