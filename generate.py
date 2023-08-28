@@ -188,6 +188,7 @@ def main(
 
     L.seed_everything(1234)
     model_size = sum([p.numel() * p.data.element_size() for p in itertools.chain(model.parameters(), model.buffers())])
+    print(f"Model size: {model_size / 1e9:.02f} GB", file=sys.stderr)
     if compile:
         global decode_one_token, prefill
         decode_one_token = torch.compile(decode_one_token, mode="reduce-overhead")
