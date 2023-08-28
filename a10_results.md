@@ -70,3 +70,17 @@ Memory used: 5.36 GB
 Time for inference 10: 31.52 sec total, 63.45 tokens/sec
 Bandwidth achieved: 202.64 GB/s
 Memory used: 4.14 GB
+
+## Longer context, remove kv cache update
+
+`python generate.py --prompt "Hello, my name is" --max_new_tokens 2000 --num_samples 10 --fake 1B  --compile true`
+
+Time for inference 10: 27.73 sec total, 72.11 tokens/sec
+Bandwidth achieved: 230.30 GB/s
+Memory used: 5.10 GB
+
+`python generate.py --prompt "Hello, my name is" --max_new_tokens 2000 --num_samples 10 --fake 1B  --compile false`
+
+Time for inference 10: 30.59 sec total, 65.39 tokens/sec
+Bandwidth achieved: 208.82 GB/s
+Memory used: 4.14 GB
