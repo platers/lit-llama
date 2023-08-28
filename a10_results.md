@@ -56,3 +56,17 @@ Memory used: 3.63 GB
 Time for inference 10: 3.23 sec total, 61.86 tokens/sec
 Bandwidth achieved: 197.55 GB/s
 Memory used: 3.54 GB
+
+## Longer context
+
+`python generate.py --prompt "Hello, my name is" --max_new_tokens 2000 --num_samples 10 --fake 1B  --compile true`
+
+Time for inference 10: 40.49 sec total, 49.40 tokens/sec
+Bandwidth achieved: 157.76 GB/s
+Memory used: 5.36 GB
+
+`python generate.py --prompt "Hello, my name is" --max_new_tokens 2000 --num_samples 10 --fake 1B  --compile false`
+
+Time for inference 10: 31.52 sec total, 63.45 tokens/sec
+Bandwidth achieved: 202.64 GB/s
+Memory used: 4.14 GB

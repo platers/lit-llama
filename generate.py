@@ -122,8 +122,8 @@ def generate(
         seq[input_pos] = next_token
 
         # if <eos> token is triggered, return the output (stop generation)
-        if next_token == eos_id:
-            return seq[:input_pos]  # include the EOS token
+        # if next_token == eos_id:
+        #     return seq[:input_pos]  # include the EOS token
 
     return seq
 
