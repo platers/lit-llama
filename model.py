@@ -241,8 +241,8 @@ class CausalSelfAttention(nn.Module):
         q = q.view(B, T, self.n_head, head_size)
         v = v.view(B, T, self.n_head, head_size)
 
-        q = apply_rope(q, rope)
-        k = apply_rope(k, rope)
+        # q = apply_rope(q, rope)
+        # k = apply_rope(k, rope)
 
         k = k.transpose(1, 2)  # (B, nh, T, hs)
         q = q.transpose(1, 2)  # (B, nh, T, hs)

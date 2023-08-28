@@ -28,3 +28,17 @@ Memory used: 3.89 GB
 Time for inference 10: 6.56 sec total, 30.51 tokens/sec
 Bandwidth achieved: 97.42 GB/s
 Memory used: 3.54 GB
+
+# Remove RoPE
+
+`python generate.py --prompt "Hello, my name is" --max_new_tokens 200 --num_samples 10 --fake 1B  --compile true`
+
+Time for inference 10: 1.87 sec total, 106.86 tokens/sec
+Bandwidth achieved: 341.26 GB/s
+Memory used: 3.89 GB
+
+`python generate.py --prompt "Hello, my name is" --max_new_tokens 200 --num_samples 10 --fake 1B  --compile false`
+
+Time for inference 10: 3.84 sec total, 52.02 tokens/sec
+Bandwidth achieved: 166.13 GB/s
+Memory used: 3.54 GB
