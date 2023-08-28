@@ -300,6 +300,9 @@ class RMSNorm(nn.Module):
         self.dim = dim
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # replace with layer norm for testing
+        return F.layer_norm(x, x.size()[1:], bias=None, eps=self.eps)
+
         # NOTE: the original RMSNorm paper implementation is not equivalent
         # norm_x = x.norm(2, dim=self.dim, keepdim=True)
         # rms_x = norm_x * d_x ** (-1. / 2)
