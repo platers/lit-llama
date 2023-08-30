@@ -143,7 +143,7 @@ def main(
     fake: Optional[str] = None,
     compile: bool = True,
     profile: Optional[Path] = None,
-    max_optimize: bool = False,
+    max_optimize: bool = True,
 ) -> None:
     """Generates text samples based on a pre-trained LLaMA model and tokenizer.
 
@@ -209,9 +209,9 @@ def main(
         global decode_one_token, prefill
         decode_one_token = torch.compile(decode_one_token, mode="reduce-overhead")
 
-        # Apparently compiling only prefill but not decode gives bunk results???
         if max_optimize:
-            prefill = torch.compile(prefill, mode="reduce-overhead")
+            # This seems to have some errors sometimes
+            # prefill = torch.compile(prefill, mode="reduce-overhead")
             torch._inductor.config.coordinate_descent_tuning = True
 
     for i in range(num_samples):
