@@ -10,8 +10,10 @@ import lightning as L
 import torch
 
 import torch._dynamo.config
+
 # torch._dynamo.config.automatic_dynamic_shapes = True
 import torch._inductor.config
+
 # torch._inductor.config.triton.unique_kernel_names = True
 
 # Enable this to bring perf from 93 tok/s => 103 tok/s
@@ -25,18 +27,19 @@ from model import LLaMA
 from tokenizer import Tokenizer
 from utils import lazy_load, llama_model_lookup
 
+
 def fast_multinomial_sample_one(probs_sort):
     q = torch.empty_like(probs_sort).exponential_(1)
     return torch.argmax(probs_sort / q, dim=-1, keepdim=True)
 
+
 def sample(logits, temperature: float = 1.0, top_k: Optional[int] = None):
-    logits =  logits[0, -1] / temperature
+    logits = logits[0, -1] / temperature
 
     # optionally crop the logits to only the top k options
     if top_k is not None:
         v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
         logits = torch.where(logits < v[-1], -float("Inf"), logits)
-
 
     probs = torch.nn.functional.softmax(logits, dim=-1)
     # print()
@@ -44,26 +47,21 @@ def sample(logits, temperature: float = 1.0, top_k: Optional[int] = None):
     # idx_next = torch.multinomial(probs, num_samples=1).to(dtype=torch.int)
     return idx_next
 
-def prefill(
-    model: LLaMA,
-    input_pos: torch.Tensor,
-    x: torch.Tensor,
-    **kwargs
-):
+
+def prefill(model: LLaMA, input_pos: torch.Tensor, x: torch.Tensor, **kwargs):
     # input_pos: [B, S]
     logits = model(x, input_pos)
     return sample(logits, **kwargs)
 
+
 def decode_one_token(
-    model: LLaMA,
-    input_pos: torch.Tensor,
-    x: torch.Tensor,
-    **kwargs
+    model: LLaMA, input_pos: torch.Tensor, x: torch.Tensor, **kwargs
 ) -> torch.Tensor:
     # input_pos: [B, 1]
     assert input_pos.shape[-1] == 1
     logits = model(x, input_pos)
     return sample(logits, **kwargs)
+
 
 @torch.no_grad()
 def generate(
@@ -103,7 +101,9 @@ def generate(
     seq = empty
     input_pos = torch.arange(0, T, device=device)
 
-    next_token = prefill(model, input_pos, prompt.view(1, -1), temperature=temperature, top_k=top_k)
+    next_token = prefill(
+        model, input_pos, prompt.view(1, -1), temperature=temperature, top_k=top_k
+    )
     seq[T] = next_token
 
     input_pos = torch.tensor([T], device=device, dtype=input_pos.dtype)
@@ -113,7 +113,9 @@ def generate(
         cur_token = next_token.view(1, -1)
 
         # forward
-        next_token = decode_one_token(model, input_pos, cur_token, temperature=temperature, top_k=top_k)
+        next_token = decode_one_token(
+            model, input_pos, cur_token, temperature=temperature, top_k=top_k
+        )
 
         # advance
         input_pos = input_pos + 1
@@ -133,6 +135,7 @@ def main(
     prompt_synthetic: Optional[int] = None,
     num_samples: int = 3,
     max_new_tokens: int = 50,
+    max_seq_length: Optional[int] = None,
     top_k: int = 200,
     temperature: float = 0.8,
     checkpoint_path: Path = Path("checkpoints/lit-llama/7B/lit-llama.pth"),
@@ -159,7 +162,11 @@ def main(
     """
     assert tokenizer_path.is_file(), tokenizer_path
 
-    precision = "bf16-true" if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else "32-true"
+    precision = (
+        "bf16-true"
+        if torch.cuda.is_available() and torch.cuda.is_bf16_supported()
+        else "32-true"
+    )
     fabric = L.Fabric(devices=1, precision=precision)
 
     print("Loading model ...", file=sys.stderr)
@@ -177,17 +184,26 @@ def main(
                 model = LLaMA.from_name(name)
     print(f"Time to load model: {time.time() - t0:.02f} seconds.", file=sys.stderr)
 
-
     model.eval()
 
     tokenizer = Tokenizer(tokenizer_path)
     encoded = tokenizer.encode(prompt, bos=True, eos=False, device=fabric.device)
     if prompt_synthetic is not None:
-        encoded = torch.randint(encoded.amax().item(), (prompt_synthetic,), dtype=encoded.dtype, device=encoded.device)
+        encoded = torch.randint(
+            encoded.amax().item(),
+            (prompt_synthetic,),
+            dtype=encoded.dtype,
+            device=encoded.device,
+        )
     prompt_length = encoded.size(0)
 
     L.seed_everything(1234)
-    model_size = sum([p.numel() * p.data.element_size() for p in itertools.chain(model.parameters(), model.buffers())])
+    model_size = sum(
+        [
+            p.numel() * p.data.element_size()
+            for p in itertools.chain(model.parameters(), model.buffers())
+        ]
+    )
     print(f"Model size: {model_size / 1e9:.02f} GB", file=sys.stderr)
     if compile:
         global decode_one_token, prefill
@@ -198,14 +214,25 @@ def main(
             prefill = torch.compile(prefill, mode="reduce-overhead")
             torch._inductor.config.coordinate_descent_tuning = True
 
-
     for i in range(num_samples):
         torch.cuda.synchronize()
         t0 = time.perf_counter()
         import contextlib
-        prof = contextlib.nullcontext() if i != num_samples - 1 or not profile else torch.profiler.profile()
+
+        prof = (
+            contextlib.nullcontext()
+            if i != num_samples - 1 or not profile
+            else torch.profiler.profile()
+        )
         with prof:
-            y = generate(model, encoded, max_new_tokens, temperature=temperature, top_k=top_k)
+            y = generate(
+                model,
+                encoded,
+                max_new_tokens,
+                max_seq_length=max_seq_length,
+                temperature=temperature,
+                top_k=top_k,
+            )
         if hasattr(prof, "export_chrome_trace"):
             prof.export_chrome_trace(f"{profile}.json")
         torch.cuda.synchronize()
@@ -215,10 +242,16 @@ def main(
         print(tokenizer.decode(y))
         tokens_generated = y.size(0) - prompt_length
         tokens_sec = tokens_generated / t
-        print(f"Time for inference {i + 1}: {t:.02f} sec total, {tokens_generated / t:.02f} tokens/sec", file=sys.stderr)
+        print(
+            f"Time for inference {i + 1}: {t:.02f} sec total, {tokens_generated / t:.02f} tokens/sec",
+            file=sys.stderr,
+        )
         print(f"Bandwidth achieved: {model_size * tokens_sec / 1e9:.02f} GB/s")
 
-    print(f"Memory used: {torch.cuda.max_memory_reserved() / 1e9:.02f} GB", file=sys.stderr)
+    print(
+        f"Memory used: {torch.cuda.max_memory_reserved() / 1e9:.02f} GB",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":
@@ -228,7 +261,7 @@ if __name__ == "__main__":
     warnings.filterwarnings(
         # Triggered internally at ../aten/src/ATen/EmptyTensor.cpp:31
         "ignore",
-        message="ComplexHalf support is experimental and many operators don't support it yet"
+        message="ComplexHalf support is experimental and many operators don't support it yet",
     )
     warnings.filterwarnings(
         # Triggered in bitsandbytes/autograd/_functions.py:298
