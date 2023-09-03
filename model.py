@@ -66,6 +66,7 @@ class LLaMAConfig:
 
 
 llama_configs = {
+    "1B": dict(n_layer=48, n_head=25, n_embd=1600),
     "7B": dict(n_layer=32, n_head=32, n_embd=4096),
     "13B": dict(n_layer=40, n_head=40, n_embd=5120),
     "30B": dict(n_layer=60, n_head=52, n_embd=6656),
